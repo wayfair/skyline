@@ -38,11 +38,13 @@ print 'Verifying alerts for metric: "' + options.metric + '"'
 if alerts_enabled:
     print 'Alerts Enabled'
     for alert in alerts:
-        print 'Checking metric name contains: "' + alert[0] + '" to send via ' + alert[1]
         if alert[0] in options.metric:
-            print '...Trigger alert via ' + alert[1]
+            print 'Metric name contains: "' + alert[0]
             if options.trigger:
+                print '... Alert sent via ' + alert[1]
                 trigger_alert(alert, options.metric)
+            else:
+                print '... Alert would be sent via ' + alert[1]              
 else:
     print 'Alerts are Disabled'
 
