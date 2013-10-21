@@ -1,7 +1,6 @@
 var GRAPHITE_HOST,
     OCULUS_HOST,
     FULL_NAMESPACE,
-    MINI_NAMESPACE,
     mini_graph,
     big_graph,
     selected,
@@ -20,7 +19,11 @@ var handle_data = function(data) {
         name = metric[1]
         var src = GRAPHITE_HOST + '/render/?width=1400&from=-1hour&target=' + name;
         // Add a space after the metric name to make each unique
-        to_append = "<div class='sub'><a target='_blank' href='" + src + "'><div class='name'>" + name + " </div></a>&nbsp;&nbsp;<a class='oculus' target='_blank' href=" + OCULUS_HOST + "/search?p_slop=20&dtw_radius=5&search_type=FastDTW&query=" + name + "&page=&filters=><i class='icon-share-alt'></i></a><div class='count'>" + parseInt(metric[0]) + "</div>";
+        to_append = "<div class='sub'><a target='_blank' href='" + src + "'><div class='name'>" + name + " </div></a>&nbsp;&nbsp;"
+        if (OCULUS_HOST != ''){
+          to_append += "<a class='oculus' target='_blank' href=" + OCULUS_HOST + "/search?p_slop=20&dtw_radius=5&search_type=FastDTW&query=" + name + "&page=&filters=><i class='icon-share-alt'></i></a>";
+        }
+        to_append += "<div class='count'>" + parseInt(metric[0]) + "</div>";
         $('#metrics_listings').append(to_append);
     }
 
@@ -44,17 +47,18 @@ var handle_interaction = function() {
     $('.sub').removeClass('selected');
     $('.sub:contains(' + selected + ')').addClass('selected');
 
-    anomalous_datapoint = parseInt($($('.selected').children()[2]).text())
+    anomalous_datapoint = parseInt($($('.selected').children('.count')).text())
  
-    $.get("/api?metric=" + MINI_NAMESPACE + "" + selected, function(d){
-        mini_data = JSON.parse(d)['results']
+    $.get("/api?metric=" + FULL_NAMESPACE + "" + selected, function(d){
+        big_data = JSON.parse(d)['results'];
+        big_graph.updateOptions( { 'file': big_data } );
+        offset = (new Date().getTime() / 1000) - 3600;
+        mini_data = big_data.filter(function (value) {
+          return value[0] > offset;
+        });
         mini_graph.updateOptions( { 'file': mini_data } );
     }); 
 
-    $.get("/api?metric=" + FULL_NAMESPACE + "" + selected, function(d){
-        big_data = JSON.parse(d)['results']
-        big_graph.updateOptions( { 'file': big_data } );
-    }); 
 
     $('#graph_title').html(selected);
 
@@ -146,7 +150,6 @@ $(function(){
         // Get the variables from settings.py
         data = JSON.parse(data);
         FULL_NAMESPACE = data['FULL_NAMESPACE'];
-        MINI_NAMESPACE = data['MINI_NAMESPACE'];
         GRAPHITE_HOST = data['GRAPHITE_HOST'];
         OCULUS_HOST = data['OCULUS_HOST'];
 

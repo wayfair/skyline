@@ -15,13 +15,14 @@ class Worker(Process):
     The worker processes chunks from the queue and appends
     the latest datapoints to their respective timesteps in Redis.
     """
-    def __init__(self, queue, parent_pid, canary=False):
+    def __init__(self, queue, parent_pid, skip_mini, canary=False):
         super(Worker, self).__init__()
         self.redis_conn = StrictRedis(unix_socket_path = settings.REDIS_SOCKET_PATH)
         self.q = queue
         self.parent_pid = parent_pid
         self.daemon = True
         self.canary = canary
+        self.skip_mini = skip_mini
 
     def check_if_parent_is_alive(self):
         """
@@ -87,10 +88,11 @@ class Worker(Process):
                     pipe.append(key, packb(metric[1]))
                     pipe.sadd(full_uniques, key)
                     
-                    # Append to mini namespace
-                    mini_key = ''.join((MINI_NAMESPACE, metric[0]))
-                    pipe.append(mini_key, packb(metric[1]))
-                    pipe.sadd(mini_uniques, mini_key)
+                    if not self.skip_mini:
+                      # Append to mini namespace
+                      mini_key = ''.join((MINI_NAMESPACE, metric[0]))
+                      pipe.append(mini_key, packb(metric[1]))
+                      pipe.sadd(mini_uniques, mini_key)
 
                     pipe.execute()
 
