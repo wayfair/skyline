@@ -110,7 +110,7 @@ class Listen(Process):
                 logger.info('can\'t connect to socket: ' + str(e))
                 break
 
-    def listen_udp(self):
+    def listen_udp_messagepack(self):
         """
         Listen over udp for MessagePack strings
         """
@@ -142,6 +142,41 @@ class Listen(Process):
                 logger.info('can\'t connect to socket: ' + str(e))
                 break
 
+    def listen_udp_carbon(self):
+        """
+        Listen over udp for carbon strings
+        """
+        while 1:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.bind((self.ip, self.port))
+                logger.info('listening over udp for carbon metrics on %s' % self.port)
+
+                chunk = []
+                buffer = ''
+                while 1:
+                    self.check_if_parent_is_alive()
+                    data, addr = s.recvfrom(2048)
+                    metrics = (buffer + data).split('\n')
+                    buffer = metrics.pop(-1)
+                    for metric in metrics:
+                        metric_parts = metric.split(" ")
+                        chunk.append([metric_parts[0], [float(metric_parts[2]), float(metric_parts[1])]])
+                    # Queue the chunk and empty the variable
+                    if len(chunk) > settings.CHUNK_SIZE:
+                        try:
+                            self.q.put(list(chunk), block=False)
+                            chunk[:] = []
+
+                        # Drop chunk if queue is full
+                        except Full:
+                            logger.info('queue is full, dropping datapoints')
+                            chunk[:] = []
+
+            except Exception as e:
+                logger.info('can\'t connect to socket: ' + str(e))
+                break
+
     def run(self):
         """
         Called when process intializes.
@@ -150,7 +185,9 @@ class Listen(Process):
 
         if self.type == 'pickle':
             self.listen_pickle()
-        elif self.type == 'udp':
-            self.listen_udp()
+        elif self.type == 'udp_messagepack':
+            self.listen_udp_messagepack()
+        elif self.type == 'udp_carbon':
+            self.listen_udp_carbon()
         else:
             logging.error('unknown listener format')

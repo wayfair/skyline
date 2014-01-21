@@ -45,7 +45,10 @@ class Horizon():
 
         # Start the listeners
         Listen(settings.PICKLE_PORT, listen_queue, pid, type="pickle").start()
-        Listen(settings.UDP_PORT, listen_queue, pid, type="udp").start()
+        if settings.UDP_FORMAT == "carbon":
+            Listen(settings.UDP_PORT, listen_queue, pid, type="udp_carbon").start()
+        else:
+            Listen(settings.UDP_PORT, listen_queue, pid, type="udp_messagepack").start()
 
         # Start the roomba
         Roomba(pid, skip_mini).start()
